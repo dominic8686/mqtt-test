@@ -76,7 +76,8 @@ class CalcViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     "play_youtube" -> {
                         val query = args.getString("query")
-                        val result = YouTubeTool.play(getApplication(), query)
+                        val videoUrl = args.optString("videoUrl", null)
+                        val result = YouTubeTool.play(getApplication(), query, videoUrl)
                         mqttClient.sendToolResult(callId, result.message)
                     }
                     else -> {
@@ -146,7 +147,8 @@ class CalcViewModel(application: Application) : AndroidViewModel(application) {
             }
             "play_youtube" -> {
                 val query = args.optString("query", "")
-                val result = YouTubeTool.play(getApplication(), query)
+                val videoUrl = args.optString("videoUrl", null)
+                val result = YouTubeTool.play(getApplication(), query, videoUrl)
                 chatMessages.add(ChatMessage(result.message, isUser = false, source = MessageSource.LOCAL))
                 isPending.value = false
             }

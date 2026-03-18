@@ -2,6 +2,7 @@ import "dotenv/config";
 import http from "node:http";
 import mqtt from "mqtt";
 import OpenAI from "openai";
+import yts from "yt-search";
 
 const MQTT_URL = process.env.MQTT_URL ?? "mqtt://localhost:1883";
 const HTTP_PORT = parseInt(process.env.HTTP_PORT ?? "3001", 10);
@@ -231,11 +232,22 @@ async function callOpenAI(
       messages,
     });
 
-    const toolRequest = {
-      callId,
-      name: toolCall.function.name,
-      args: JSON.parse(toolCall.function.arguments),
-    };
+    const args = JSON.parse(toolCall.function.arguments);
+
+    // Resolve YouTube query to a direct video URL
+    if (toolCall.function.name === "play_youtube" && args.query) {
+      try {
+        const sr = await yts(args.query);
+        if (sr.videos.length > 0) {
+          args.videoUrl = sr.videos[0].url;
+          console.log(`🎬 Resolved "${args.query}" → ${args.videoUrl}`);
+        }
+      } catch (e) {
+        console.warn("yt-search failed, falling back to search query:", e);
+      }
+    }
+
+    const toolRequest = { callId, name: toolCall.function.name, args };
 
     console.log(`→ Tool call to ${deviceId}:`, toolRequest);
     mqttClient.publish(`calc/${deviceId}/tools/call`, JSON.stringify(toolRequest));
