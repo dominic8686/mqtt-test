@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.mqttai.calc.tools.CalculateTool
 import com.mqttai.calc.tools.LocalRouter
 import com.mqttai.calc.tools.WifiTool
+import com.mqttai.calc.tools.YouTubeTool
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -72,6 +73,11 @@ class CalcViewModel(application: Application) : AndroidViewModel(application) {
                         }
                         mqttClient.sendToolResult(callId, result.message)
                         mqttClient.publishWifiStatus(enabled)
+                    }
+                    "play_youtube" -> {
+                        val query = args.getString("query")
+                        val result = YouTubeTool.play(getApplication(), query)
+                        mqttClient.sendToolResult(callId, result.message)
                     }
                     else -> {
                         mqttClient.sendToolResult(callId, "Unknown tool: $name")
@@ -138,8 +144,13 @@ class CalcViewModel(application: Application) : AndroidViewModel(application) {
                 mqttClient.publishWifiStatus(enabled)
                 isPending.value = false
             }
+            "play_youtube" -> {
+                val query = args.optString("query", "")
+                val result = YouTubeTool.play(getApplication(), query)
+                chatMessages.add(ChatMessage(result.message, isUser = false, source = MessageSource.LOCAL))
+                isPending.value = false
+            }
             else -> {
-                // Unknown tool — fall back to cloud
                 mqttClient.sendMessage(args.toString())
             }
         }

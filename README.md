@@ -22,6 +22,19 @@ A proof-of-concept full-stack project: a native Android calculator app with MQTT
 - Real-time web dashboard with SSE for device state monitoring
 - MQTT broker (Mosquitto) for all communication
 
+## AI Models
+
+This project uses two AI models with an on-device router that decides which one handles each request:
+
+| Model | Location | Role | Used For |
+|-------|----------|------|----------|
+| **Qwen2.5-0.5B-Instruct** | On-device (llama.cpp) | Intent classifier | Wi-Fi toggle, basic math |
+| **OpenAI gpt-4o-mini** | Cloud (Docker server) | Full assistant | Complex queries, conversation |
+
+The on-device model (~469MB GGUF) runs inference locally via llama.cpp/NDK and classifies user messages into one of four intents: `WIFI_ON`, `WIFI_OFF`, `CALCULATE`, or `CLOUD`. Simple commands execute locally with zero latency; everything else goes to OpenAI.
+
+See **[agent.md](agent.md)** for the full AI architecture, routing logic, integration details, and model setup instructions.
+
 ## Project Structure
 
 ```
@@ -130,3 +143,4 @@ Navigate to http://localhost:3001 to view connected devices, toggle Wi-Fi, and s
 - The Android app targets SDK 28 to allow `WifiManager.setWifiEnabled()` on API 29 emulators
 - The on-device model handles simple intents (wifi on/off, basic math); complex queries go to OpenAI
 - The emulator's ABI filter is set to `x86_64` — change to `arm64-v8a` for real devices
+- See [agent.md](agent.md) for detailed AI model architecture and routing documentation

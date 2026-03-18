@@ -9,7 +9,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const SYSTEM_PROMPT = `You are a smart phone assistant. You have tools to control the phone.
 When the user asks you to calculate something, use the calculate tool. Always use the tool — never calculate in your head. After getting the result, respond with a short answer like "6 + 6 = 12".
-When the user asks to turn Wi-Fi on or off, use the toggle_wifi tool. Confirm what you did afterwards.`;
+When the user asks to turn Wi-Fi on or off, use the toggle_wifi tool. Confirm what you did afterwards.
+When the user asks to play music, a song, a video, or open YouTube, use the play_youtube tool with a good search query. Confirm what you opened.`;
 
 const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
@@ -45,6 +46,24 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           },
         },
         required: ["enabled"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "play_youtube",
+      description:
+        "Open YouTube on the phone and search for a video or song to play.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "The search query for YouTube, e.g. 'rick astley never gonna give you up'",
+          },
+        },
+        required: ["query"],
       },
     },
   },
