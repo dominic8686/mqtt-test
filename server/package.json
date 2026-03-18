@@ -10,8 +10,7 @@
   "dependencies": {
     "mqtt": "^5.10.0",
     "openai": "^4.80.0",
-    "dotenv": "^16.4.0",
-    "yt-search": "^2.12.1"
+    "dotenv": "^16.4.0"
   },
   "devDependencies": {
     "tsx": "^4.19.0",

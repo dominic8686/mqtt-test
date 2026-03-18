@@ -10,7 +10,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mqttai.chat.tools.CalculateTool
 import com.mqttai.chat.tools.LocalRouter
-import com.mqttai.chat.tools.YouTubeTool
 import com.mqttai.mdm.IMdmChatCallback
 import com.mqttai.mdm.IMdmService
 import kotlinx.coroutines.Dispatchers
@@ -131,13 +130,6 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 isPending.value = false
             }
-            "play_youtube" -> {
-                val query = args.optString("query", "")
-                val videoUrl = args.optString("videoUrl", null)
-                val result = YouTubeTool.play(getApplication(), query, videoUrl)
-                chatMessages.add(ChatMessage(result.message, isUser = false, source = MessageSource.LOCAL))
-                isPending.value = false
-            }
             else -> {
                 // Unknown local tool — send to cloud
                 sendToCloud(args.toString())
@@ -173,11 +165,6 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 } catch (e: Exception) {
                     Log.e(TAG, "Cloud tool call failed", e)
                 }
-            }
-            "play_youtube" -> {
-                val query = args.getString("query")
-                val videoUrl = args.optString("videoUrl", null)
-                YouTubeTool.play(getApplication(), query, videoUrl)
             }
         }
     }

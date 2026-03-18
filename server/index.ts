@@ -2,7 +2,6 @@ import "dotenv/config";
 import http from "node:http";
 import mqtt from "mqtt";
 import OpenAI from "openai";
-import yts from "yt-search";
 
 const MQTT_URL = process.env.MQTT_URL ?? "mqtt://localhost:1883";
 const HTTP_PORT = parseInt(process.env.HTTP_PORT ?? "3001", 10);
@@ -11,7 +10,6 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const SYSTEM_PROMPT = `You are a smart phone assistant. You have tools to control the phone.
 When the user asks you to calculate something, use the calculate tool. Always use the tool — never calculate in your head. After getting the result, respond with a short answer like "6 + 6 = 12".
 When the user asks to turn Wi-Fi on or off, use the toggle_wifi tool. Confirm what you did afterwards.
-When the user asks to play music, a song, a video, or open YouTube, use the play_youtube tool with a good search query. Confirm what you opened.
 You can also control brightness, Bluetooth, volume, screen, location, power, apps, screenshots, and push alerts using the appropriate tools. Confirm what you did after each action.`;
 
 const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
@@ -48,24 +46,6 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           },
         },
         required: ["enabled"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "play_youtube",
-      description:
-        "Open YouTube on the phone and search for a video or song to play.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "The search query for YouTube, e.g. 'rick astley never gonna give you up'",
-          },
-        },
-        required: ["query"],
       },
     },
   },
@@ -367,19 +347,6 @@ async function callOpenAI(
     });
 
     const args = JSON.parse(toolCall.function.arguments);
-
-    // Resolve YouTube query to a direct video URL
-    if (toolCall.function.name === "play_youtube" && args.query) {
-      try {
-        const sr = await yts(args.query);
-        if (sr.videos.length > 0) {
-          args.videoUrl = sr.videos[0].url;
-          console.log(`🎬 Resolved "${args.query}" → ${args.videoUrl}`);
-        }
-      } catch (e) {
-        console.warn("yt-search failed, falling back to search query:", e);
-      }
-    }
 
     const toolRequest = { callId, name: toolCall.function.name, args };
 

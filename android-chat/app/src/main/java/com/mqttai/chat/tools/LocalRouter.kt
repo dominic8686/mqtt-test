@@ -20,13 +20,12 @@ object LocalRouter {
     private var initialized = false
 
     private val ROUTING_PROMPT = """Classify the intent. Reply with ONLY one label.
-Labels: WIFI_ON, WIFI_OFF, CALCULATE, YOUTUBE, CLOUD
+Labels: WIFI_ON, WIFI_OFF, CALCULATE, CLOUD
 
 Rules:
 - WIFI_ON: message asks to enable/turn on wifi
 - WIFI_OFF: message asks to disable/turn off wifi
 - CALCULATE: message contains numbers and math
-- YOUTUBE: message asks to play music, a song, a video, or open youtube
 - CLOUD: everything else (questions, conversation, no math)
 
 Examples:
@@ -36,11 +35,6 @@ Examples:
 "enable wifi" -> WIFI_ON
 "6+6" -> CALCULATE
 "what is 10 times 5" -> CALCULATE
-"play rick astley" -> YOUTUBE
-"play never gonna give you up" -> YOUTUBE
-"play some music" -> YOUTUBE
-"open youtube" -> YOUTUBE
-"play despacito" -> YOUTUBE
 "whats the meaning of life" -> CLOUD
 "hello" -> CLOUD
 "explain gravity" -> CLOUD
@@ -73,7 +67,7 @@ Message: """
             Log.d(TAG, "Model output: $output")
 
             // Extract the first recognized label from the output
-            val label = listOf("WIFI_ON", "WIFI_OFF", "CALCULATE", "YOUTUBE", "CLOUD")
+            val label = listOf("WIFI_ON", "WIFI_OFF", "CALCULATE", "CLOUD")
                 .firstOrNull { output.contains(it) } ?: "CLOUD"
 
             Log.i(TAG, "Classified intent: $label")
@@ -98,13 +92,6 @@ Message: """
                         )
                     }
                 }
-                "YOUTUBE" -> {
-                    val query = extractYouTubeQuery(userMessage)
-                    RouteDecision(
-                        "local", "play_youtube",
-                        JSONObject().put("query", query)
-                    )
-                }
                 else -> RouteDecision("cloud")
             }
         } catch (e: Exception) {
@@ -127,14 +114,6 @@ Message: """
             .replace("power", "^").replace("to the", "^")
             .replace(Regex("what is|calculate|compute|what's|equals"), "")
             .trim()
-    }
-
-    /** Extract a YouTube search query from natural language */
-    private fun extractYouTubeQuery(input: String): String {
-        return input.lowercase()
-            .replace(Regex("(play|open|search|find|put on|on youtube|youtube|music video|video|song)"), "")
-            .trim()
-            .ifBlank { input }
     }
 
     fun isReady(): Boolean = initialized && LlamaInference.isLoaded()
