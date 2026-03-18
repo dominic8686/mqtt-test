@@ -1,0 +1,30 @@
+# Secrets
+.env
+
+# Node
+node_modules/
+dist/
+
+# Android
+.gradle/
+.cxx/
+.kotlin/
+build/
+local.properties
+*.iml
+*.apk
+*.aar
+*.ap_
+*.dex
+
+# llama.cpp (cloned at build time)
+android/app/src/main/cpp/llama.cpp/
+
+# Model files
+*.gguf
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

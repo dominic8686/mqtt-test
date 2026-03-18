@@ -1,0 +1,20 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    restart: unless-stopped
+
+  server:
+    build: ./server
+    depends_on:
+      - mosquitto
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    environment:
+      - MQTT_URL=mqtt://mosquitto:1883
+    restart: unless-stopped
