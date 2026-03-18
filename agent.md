@@ -2,7 +2,7 @@
 
 This project uses a **dual-model routing architecture** split across **two standalone Android projects**:
 - **MDM System App** (`android-mdm/`, package `com.mqttai.mdm`) — owns the MQTT connection and hardware/system tools (Wi-Fi, Bluetooth, brightness, volume, screen, location, power, screenshots, app management, alerts)
-- **Chat App** (`android-chat/`, package `com.mqttai.chat`) — chat UI, on-device LLM router, and app-level tools (calculator, YouTube)
+- **Chat App** (`android-chat/`, package `com.mqttai.chat`) — chat UI, on-device LLM router, and app-level tools (calculator)
 
 Each app is a fully independent Android project with its own Gradle wrapper and can be opened/built separately. The Chat App binds to the MDM service via AIDL. Simple intents are handled locally; complex queries are forwarded to a cloud LLM via MQTT through the MDM app.
 
@@ -51,7 +51,6 @@ The model outputs one of four labels:
 | `WIFI_ON` | Turn Wi-Fi on | MDM app → `WifiTool.kt` (via AIDL) |
 | `WIFI_OFF` | Turn Wi-Fi off | MDM app → `WifiTool.kt` (via AIDL) |
 | `CALCULATE` | Evaluate math expression | Chat app → `CalculateTool.kt` (local) |
-| `YOUTUBE` | Open YouTube and search | Chat app → `YouTubeTool.kt` (local) |
 | `CLOUD` | Forward to OpenAI | MDM app → MQTT → Server |
 
 **Safety net**: If the model classifies as CALCULATE but no digits are found in the expression, it falls back to CLOUD.
@@ -69,20 +68,19 @@ The server registers the following tools that the cloud model can invoke:
 
 **App-level tools** (handled by Chat App):
 1. **`calculate`** — Evaluates a math expression (e.g. `6+6`). Sent to phone via MQTT; evaluated locally with `CalculateTool.kt`.
-2. **`play_youtube`** — Opens YouTube on the phone and searches for a video/song.
 
 **MDM hardware/system tools** (handled by MDM App directly):
-3. **`toggle_wifi`** — Turns Wi-Fi on or off via `WifiTool.kt`. Requires `CHANGE_WIFI_STATE`.
-4. **`set_brightness`** — Sets screen brightness (0–255) or toggles auto-brightness. Requires `WRITE_SETTINGS`.
-5. **`toggle_bluetooth`** — Enables or disables Bluetooth. Requires `BLUETOOTH_ADMIN` (targetSdk ≤ 28).
-6. **`set_volume`** — Sets volume for a stream (media/ring/notification/alarm/system). No extra permissions.
-7. **`set_screen`** — Turns screen on (wake lock) or off (release). Requires `WAKE_LOCK`.
-8. **`get_device_info`** — Returns battery %, storage, RAM, model, Android version as JSON.
-9. **`take_screenshot`** — Takes a screenshot via `screencap` shell command. Requires root or adb.
-10. **`manage_app`** — Launch, force-stop, or list installed apps. Actions: `launch`, `stop`, `list`.
-11. **`set_location`** — Sets location mode (off/sensors_only/battery_saving/high_accuracy). Requires `WRITE_SECURE_SETTINGS` (granted via adb).
-12. **`power_action`** — Sleep (lock screen) or reboot. Sleep uses DevicePolicyManager or keyevent fallback; reboot requires root.
-13. **`push_alert`** — Sends a notification or toast to the device. Requires `SYSTEM_ALERT_WINDOW` for overlays.
+2. **`toggle_wifi`** — Turns Wi-Fi on or off via `WifiTool.kt`. Requires `CHANGE_WIFI_STATE`.
+3. **`set_brightness`** — Sets screen brightness (0–255) or toggles auto-brightness. Requires `WRITE_SETTINGS`.
+4. **`toggle_bluetooth`** — Enables or disables Bluetooth. Requires `BLUETOOTH_ADMIN` (targetSdk ≤ 28).
+5. **`set_volume`** — Sets volume for a stream (media/ring/notification/alarm/system). No extra permissions.
+6. **`set_screen`** — Turns screen on (wake lock) or off (release). Requires `WAKE_LOCK`.
+7. **`get_device_info`** — Returns battery %, storage, RAM, model, Android version as JSON.
+8. **`take_screenshot`** — Takes a screenshot via `screencap` shell command. Requires root or adb.
+9. **`manage_app`** — Launch, force-stop, or list installed apps. Actions: `launch`, `stop`, `list`.
+10. **`set_location`** — Sets location mode (off/sensors_only/battery_saving/high_accuracy). Requires `WRITE_SECURE_SETTINGS` (system priv-app).
+11. **`power_action`** — Sleep (lock screen) or reboot. Sleep uses DevicePolicyManager or keyevent fallback; reboot requires root.
+12. **`push_alert`** — Sends a notification or toast to the device. Requires `SYSTEM_ALERT_WINDOW` for overlays.
 
 #### Cloud flow
 
@@ -97,7 +95,7 @@ User types message in Chat App
         → Server publishes to calc/{deviceId}/tools/call
         → MDM receives tool call:
             → Hardware tool (toggle_wifi) → MDM executes directly
-            → App-level tool (calculate, youtube) → forwarded to Chat App via AIDL callback
+            → App-level tool (calculate) → forwarded to Chat App via AIDL callback
         → Result published to calc/{deviceId}/tools/result
         → Server feeds result back to OpenAI for final response
     → Final text response published to calc/{deviceId}/chat/out
@@ -125,7 +123,6 @@ Parse output label
     ├─ WIFI_OFF ──► MDM.executeTool("toggle_wifi")  [LOCAL → AIDL]
     ├─ CALCULATE ─► CalculateTool.evaluate(expr)     [LOCAL]
     │               (if no digits found → CLOUD)
-    ├─ YOUTUBE ──► YouTubeTool.play(query)           [LOCAL]
     └─ CLOUD ─────► MDM.sendCloudMessage() → MQTT   [CLOUD]
 ```
 
