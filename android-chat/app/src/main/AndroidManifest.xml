@@ -1,0 +1,23 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Required to discover and bind to the MDM service on Android 11+ -->
+    <queries>
+        <package android:name="com.mqttai.mdm" />
+    </queries>
+
+    <application
+        android:allowBackup="true"
+        android:label="MQTT Chat"
+        android:theme="@style/Theme.MqttChat">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

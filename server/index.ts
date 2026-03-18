@@ -11,7 +11,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const SYSTEM_PROMPT = `You are a smart phone assistant. You have tools to control the phone.
 When the user asks you to calculate something, use the calculate tool. Always use the tool — never calculate in your head. After getting the result, respond with a short answer like "6 + 6 = 12".
 When the user asks to turn Wi-Fi on or off, use the toggle_wifi tool. Confirm what you did afterwards.
-When the user asks to play music, a song, a video, or open YouTube, use the play_youtube tool with a good search query. Confirm what you opened.`;
+When the user asks to play music, a song, a video, or open YouTube, use the play_youtube tool with a good search query. Confirm what you opened.
+You can also control brightness, Bluetooth, volume, screen, location, power, apps, screenshots, and push alerts using the appropriate tools. Confirm what you did after each action.`;
 
 const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
@@ -65,6 +66,139 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           },
         },
         required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_brightness",
+      description: "Set the phone screen brightness level (0-255) or toggle auto-brightness.",
+      parameters: {
+        type: "object",
+        properties: {
+          level: { type: "integer", description: "Brightness level 0-255" },
+          auto: { type: "boolean", description: "Enable or disable auto-brightness" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "toggle_bluetooth",
+      description: "Turn the phone's Bluetooth on or off.",
+      parameters: {
+        type: "object",
+        properties: {
+          enabled: { type: "boolean", description: "true to turn Bluetooth on, false to turn it off" },
+        },
+        required: ["enabled"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_volume",
+      description: "Set the phone's volume for a given audio stream.",
+      parameters: {
+        type: "object",
+        properties: {
+          stream: { type: "string", enum: ["media", "ring", "notification", "alarm", "system"], description: "Audio stream to adjust" },
+          level: { type: "integer", description: "Volume level (0 to max, varies by stream)" },
+        },
+        required: ["level"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_screen",
+      description: "Turn the phone screen on or off.",
+      parameters: {
+        type: "object",
+        properties: {
+          on: { type: "boolean", description: "true to turn screen on, false to turn it off" },
+        },
+        required: ["on"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_device_info",
+      description: "Get device information including battery, storage, RAM, model and Android version.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "take_screenshot",
+      description: "Take a screenshot of the phone's current screen.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "manage_app",
+      description: "Launch, force-stop or list installed apps on the phone.",
+      parameters: {
+        type: "object",
+        properties: {
+          action: { type: "string", enum: ["launch", "stop", "list"], description: "Action to perform" },
+          package_name: { type: "string", description: "App package name (for launch/stop)" },
+          include_system: { type: "boolean", description: "Include system apps in list (default false)" },
+        },
+        required: ["action"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_location",
+      description: "Set the phone's location mode (off, sensors_only, battery_saving, high_accuracy).",
+      parameters: {
+        type: "object",
+        properties: {
+          mode: { type: "string", enum: ["off", "sensors_only", "battery_saving", "high_accuracy"], description: "Location mode" },
+        },
+        required: ["mode"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "power_action",
+      description: "Perform a power action: sleep (lock screen) or reboot the phone.",
+      parameters: {
+        type: "object",
+        properties: {
+          action: { type: "string", enum: ["sleep", "reboot"], description: "Power action to perform" },
+        },
+        required: ["action"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "push_alert",
+      description: "Send an alert to the phone as a notification or toast message.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Alert title" },
+          message: { type: "string", description: "Alert message body" },
+          method: { type: "string", enum: ["notification", "toast"], description: "Alert delivery method (default: notification)" },
+        },
+        required: ["message"],
       },
     },
   },

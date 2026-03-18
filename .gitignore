@@ -17,8 +17,15 @@ local.properties
 *.ap_
 *.dex
 
+# Gradle build artifacts
+**/app/intermediates/
+**/app/generated/
+**/app/kotlin/
+**/app/tmp/
+**/app/outputs/
+
 # llama.cpp (cloned at build time)
-android/app/src/main/cpp/llama.cpp/
+android-chat/app/src/main/cpp/llama.cpp/
 
 # Model files
 *.gguf

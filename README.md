@@ -1,24 +1,29 @@
 # MQTT AI Calculator
 
-A proof-of-concept full-stack project: a native Android calculator app with MQTT messaging, OpenAI tool-calling backend, on-device LLM routing, and a web dashboard for remote device control.
+A proof-of-concept full-stack project: two Android apps (MDM system service + chat UI) with MQTT messaging, OpenAI tool-calling backend, on-device LLM routing, and a web dashboard for remote device control.
 
 ## Architecture
 
 ```
-┌─────────────┐   MQTT    ┌─────────────────┐   HTTP   ┌───────────┐
-│  Android App│ ◄────────►│  Node.js Server  │◄────────►│ Dashboard │
-│  (Kotlin)   │           │  (OpenAI + MQTT) │   SSE    │  (Web UI) │
-└─────────────┘           └─────────────────┘          └───────────┘
-       │                         │
-  On-device LLM            Docker Compose
-  (llama.cpp)              (Mosquitto + Server)
+┌──────────────────────┐          ┌──────────────────────┐
+│   Chat App           │  AIDL /  │   MDM System App     │
+│   (com.mqttai.chat)  │◄────────►│   (com.mqttai.mdm)   │
+│                      │  Bind    │                      │     ┌─────────────────┐   HTTP   ┌───────────┐
+│  - Chat UI (Compose) │          │  - MQTT connection   │◄───►│  Node.js Server  │◄────────►│ Dashboard │
+│  - LocalRouter + LLM │          │  - WifiTool          │MQTT │  (OpenAI + MQTT) │   SSE    │  (Web UI) │
+│  - CalculateTool     │          │  - (future: BT, GPS) │     └─────────────────┘          └───────────┘
+│  - YouTubeTool       │          │  - Foreground Service │            │
+└──────────────────────┘          └──────────────────────┘       Docker Compose
+                                                              (Mosquitto + Server)
 ```
 
 **Key features:**
-- Calculator UI with chat interface (Jetpack Compose)
+- Two-app architecture: MDM system service + chat UI (AIDL IPC)
+- Chat UI with calculator display (Jetpack Compose)
 - Local intent classification via on-device Qwen2.5-0.5B model (llama.cpp + NDK)
 - Cloud fallback to OpenAI gpt-4o-mini with tool calling
-- Wi-Fi toggle tool (controlled from app chat or web dashboard)
+- Wi-Fi toggle via MDM service (hardware tool, controlled from chat or web dashboard)
+- App-level tools (calculator, YouTube) handled locally in chat app
 - Real-time web dashboard with SSE for device state monitoring
 - MQTT broker (Mosquitto) for all communication
 
@@ -47,21 +52,40 @@ mqtt-test/
 │   └── tsconfig.json
 ├── mosquitto/
 │   └── mosquitto.conf
-├── android/
+├── android-mdm/                # MDM System App (com.mqttai.mdm) — standalone project
 │   ├── app/
 │   │   ├── build.gradle.kts
 │   │   └── src/main/
 │   │       ├── AndroidManifest.xml
-│   │       ├── cpp/
-│   │       │   ├── CMakeLists.txt    # llama.cpp native build
-│   │       │   └── llm_bridge.cpp    # JNI bridge
-│   │       └── java/com/mqttai/calc/
-│   │           ├── MainActivity.kt
-│   │           ├── CalcViewModel.kt
-│   │           ├── MqttAiClient.kt
+│   │       ├── aidl/com/mqttai/mdm/
+│   │       │   ├── IMdmService.aidl
+│   │       │   └── IMdmChatCallback.aidl
+│   │       └── java/com/mqttai/mdm/
+│   │           ├── MdmService.kt       # Foreground service + AIDL binder
+│   │           ├── MdmLauncherActivity.kt
+│   │           ├── MqttManager.kt      # MQTT connection lifecycle
 │   │           └── tools/
-│   │               ├── CalculateTool.kt
-│   │               ├── WifiTool.kt
+│   │               └── WifiTool.kt     # Hardware tool
+│   ├── build.gradle.kts
+│   ├── settings.gradle.kts
+│   └── gradle/
+├── android-chat/               # Chat App (com.mqttai.chat) — standalone project
+│   ├── app/
+│   │   ├── build.gradle.kts
+│   │   └── src/main/
+│   │       ├── AndroidManifest.xml
+│   │       ├── aidl/com/mqttai/mdm/    # AIDL copy (must match mdm)
+│   │       ├── cpp/
+│   │       │   ├── CMakeLists.txt
+│   │       │   ├── llm_bridge.cpp
+│   │       │   └── llama.cpp/          # git clone
+│   │       └── java/com/mqttai/chat/
+│   │           ├── MainActivity.kt
+│   │           ├── ChatViewModel.kt
+│   │           ├── MdmServiceConnection.kt
+│   │           └── tools/
+│   │               ├── CalculateTool.kt  # App-level tool
+│   │               ├── YouTubeTool.kt    # App-level tool
 │   │               ├── LocalRouter.kt
 │   │               └── LlamaInference.kt
 │   ├── build.gradle.kts
@@ -99,32 +123,47 @@ This starts:
 ### 3. Clone llama.cpp (for on-device LLM)
 
 ```bash
-git clone https://github.com/ggerganov/llama.cpp android/app/src/main/cpp/llama.cpp
+git clone --depth 1 https://github.com/ggerganov/llama.cpp android-chat/app/src/main/cpp/llama.cpp
 ```
 
-### 4. Build & Install Android App
+### 4. Build & Install MDM App
 
 ```bash
-cd android
+cd android-mdm
 gradlew.bat assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
+cd ..
 ```
 
-### 5. Grant Permission (emulator only)
+### 5. Build & Install Chat App
 
 ```bash
-adb shell pm grant com.mqttai.calc android.permission.WRITE_SECURE_SETTINGS
+cd android-chat
+gradlew.bat assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+cd ..
 ```
 
-### 6. Push Model to Device (for local routing)
+### 6. Grant Permission (emulator only)
+
+```bash
+adb shell pm grant com.mqttai.mdm android.permission.WRITE_SECURE_SETTINGS
+```
+
+### 7. Start MDM Service
+
+Open the "MQTT MDM" app on the device — it starts the foreground service and closes.
+The service runs in the background and the Chat app will bind to it automatically.
+
+### 8. Push Model to Device (for local routing)
 
 Download [Qwen2.5-0.5B-Instruct Q4_K_M GGUF](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF) and push:
 
 ```bash
-adb push qwen2.5-0.5b-instruct-q4_k_m.gguf /data/data/com.mqttai.calc/files/model.gguf
+adb push qwen2.5-0.5b-instruct-q4_k_m.gguf /data/data/com.mqttai.chat/files/model.gguf
 ```
 
-### 7. Open Dashboard
+### 9. Open Dashboard
 
 Navigate to http://localhost:3001 to view connected devices, toggle Wi-Fi, and send chat messages.
 
@@ -140,7 +179,10 @@ Navigate to http://localhost:3001 to view connected devices, toggle Wi-Fi, and s
 
 ## Notes
 
-- The Android app targets SDK 28 to allow `WifiManager.setWifiEnabled()` on API 29 emulators
-- The on-device model handles simple intents (wifi on/off, basic math); complex queries go to OpenAI
+- The MDM app targets SDK 28 to allow `WifiManager.setWifiEnabled()` on API 29 emulators
+- The Chat app targets SDK 35 (modern) — it does not need the low targetSdk workaround
+- The on-device model handles simple intents (wifi on/off, basic math, YouTube); complex queries go to OpenAI
+- Hardware tools (Wi-Fi) are handled by the MDM app; app-level tools (calculator, YouTube) stay in the Chat app
+- The Chat app communicates with the MDM app via AIDL (bound service IPC)
 - The emulator's ABI filter is set to `x86_64` — change to `arm64-v8a` for real devices
 - See [agent.md](agent.md) for detailed AI model architecture and routing documentation
